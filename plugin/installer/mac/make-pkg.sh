@@ -55,7 +55,8 @@ make_component() { # name bundle-path install-location [scripts]
   # install exactly where we say, even if another copy exists elsewhere
   # (pkgbuild only lists some bundle types, e.g. apps; others are never relocated anyway)
   if /usr/libexec/PlistBuddy -c "Print :0" "$WORK/$name.plist" >/dev/null 2>&1; then
-    /usr/libexec/PlistBuddy -c "Set :0:BundleIsRelocatable false" "$WORK/$name.plist"
+    /usr/libexec/PlistBuddy -c "Delete :0:BundleIsRelocatable" "$WORK/$name.plist" >/dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" "$WORK/$name.plist"
     args+=(--component-plist "$WORK/$name.plist")
   fi
   [ -n "$scripts" ] && args+=(--scripts "$scripts")
