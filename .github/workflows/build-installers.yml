@@ -1,0 +1,79 @@
+# Builds the Murmur plug-in installers on GitHub's machines and publishes them
+# on the repository's Releases page (tag: plugin-v<version>).
+name: Build plug-in installers
+
+on:
+  push:
+    paths:
+      - "plugin/**"
+      - ".github/workflows/build-installers.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: plugin
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build universal plug-ins and .pkg
+        run: bash installer/mac/make-pkg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Murmur-mac-installer
+          path: plugin/dist/*.pkg
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -B build-win -G "Visual Studio 17 2022" -A x64
+      - name: Build
+        run: cmake --build build-win --config Release --parallel
+      - name: Make installer
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path CMakeLists.txt -Pattern 'project\(Murmur VERSION ([0-9.]+)').Matches[0].Groups[1].Value
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DMyAppVersion=$ver" installer\windows\Murmur.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Murmur-windows-installer
+          path: plugin/dist/*.exe
+          if-no-files-found: error
+
+  release:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Publish release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(sed -n 's/^project(Murmur VERSION \([0-9.]*\).*/\1/p' plugin/CMakeLists.txt)
+          TAG="plugin-v$VER"
+          mkdir -p bundle/Mac bundle/Windows
+          cp out/*.pkg bundle/Mac/ && cp out/*.exe bundle/Windows/
+          cp plugin/LOGIC-SETUP.md bundle/Mac/
+          (cd bundle && zip -r "../Murmur-$VER-installers.zip" Mac Windows)
+          NOTES="Murmur $VER — live audio to MIDI (voice, guitar, bass). Mac: AU + VST3 + app (.pkg). Windows: VST3 + app (setup.exe). Unsigned builds: on Mac use System Settings > Privacy & Security > Open Anyway; on Windows, SmartScreen > More info > Run anyway."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/*.pkg out/*.exe "Murmur-$VER-installers.zip" --clobber
+          else
+            gh release create "$TAG" out/*.pkg out/*.exe "Murmur-$VER-installers.zip" --title "Murmur plug-in $VER" --notes "$NOTES"
+          fi

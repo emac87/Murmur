@@ -1,0 +1,23 @@
+# Build output (CMake, Xcode, and FetchContent downloads live under build/)
+build/
+cmake-build-*/
+compile_commands.json
+
+# Compiler and linker artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.dSYM/
+engine_test
+
+# macOS and editor noise
+.DS_Store
+xcuserdata/
+*.xcuserstate
+.vscode/
+.idea/
+.cache/
