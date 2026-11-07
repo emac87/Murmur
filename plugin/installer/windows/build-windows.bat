@@ -1,6 +1,6 @@
 @echo off
 REM Builds Murmur (VST3 + standalone) and the Windows installer.
-REM Needs: Visual Studio 2022 with "Desktop development with C++", CMake, Git, Inno Setup 6.
+REM Needs: Visual Studio 2022 or newer with "Desktop development with C++", CMake, Git, Inno Setup 6.
 setlocal
 cd /d "%~dp0\..\.."
 
@@ -14,7 +14,7 @@ for /f "tokens=3" %%v in ('findstr /r /c:"^project(Murmur VERSION" CMakeLists.tx
 set "VER=%VER:)=%"
 echo === Building Murmur %VER% ===
 
-cmake -B build-win -G "Visual Studio 17 2022" -A x64 || goto :fail
+cmake -B build-win -A x64 || goto :fail
 cmake --build build-win --config Release --parallel || goto :fail
 
 "%ISCC%" /DMyAppVersion=%VER% installer\windows\Murmur.iss || goto :fail

@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Configure
-        run: cmake -B build-win -G "Visual Studio 17 2022" -A x64
+        run: cmake -B build-win -A x64
       - name: Build
         run: cmake --build build-win --config Release --parallel
       - name: Make installer
