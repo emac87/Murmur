@@ -51,13 +51,14 @@ make_component() { # name bundle-path install-location [scripts]
   cp -R "$bundle" "$root/"
   local args=(--root "$root" --identifier "com.murmuraudio.murmur.$name" --version "$VERSION"
               --install-location "$loc")
-  pkgbuild --analyze --root "$root" "$WORK/$name.plist" >/dev/null
-  # install exactly where we say, even if another copy exists elsewhere
-  # (pkgbuild only lists some bundle types, e.g. apps; others are never relocated anyway)
-  if /usr/libexec/PlistBuddy -c "Print :0" "$WORK/$name.plist" >/dev/null 2>&1; then
+  # Keep each bundle at its install location even if another copy exists elsewhere.
+  # Best effort only: pkgbuild doesn't list every bundle type, so never fail on this.
+  if pkgbuild --analyze --root "$root" "$WORK/$name.plist" >/dev/null 2>&1 \
+     && /usr/libexec/PlistBuddy -c "Print :0" "$WORK/$name.plist" >/dev/null 2>&1; then
     /usr/libexec/PlistBuddy -c "Delete :0:BundleIsRelocatable" "$WORK/$name.plist" >/dev/null 2>&1 || true
-    /usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" "$WORK/$name.plist"
-    args+=(--component-plist "$WORK/$name.plist")
+    if /usr/libexec/PlistBuddy -c "Add :0:BundleIsRelocatable bool false" "$WORK/$name.plist" >/dev/null 2>&1; then
+      args+=(--component-plist "$WORK/$name.plist")
+    fi
   fi
   [ -n "$scripts" ] && args+=(--scripts "$scripts")
   pkgbuild "${args[@]}" "$WORK/Murmur-$name.pkg"
